@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+
+<html>
+    <head>
+        <title>Random Bezier</title>
+		<style>
+* {
+margin: 0;
+padding: 0;
+}
+		</style>
+    </head>
+    <body>
+	<canvas id="canvas"></canvas>       
+
+    <script>
+
+document.documentElement.style.overflow = 'hidden';  // firefox, chrome
+document.body.scroll = "no"; // ie only
+
+var scrW = window.innerWidth;
+var scrH = window.innerHeight;
+
+
+var canvas = document.getElementById("canvas");
+var ctx = canvas.getContext('2d');
+ctx.font = "30px Arial";
+
+canvas.width  = scrW;
+canvas.height = scrH
+var back = 255;
+var backstr = 'rgb('+back+','+back+','+back+')';
+ctx.fillStyle = backstr;
+ctx.fillRect(0, 0, scrW, scrH);
+ctx.lineWidth = 4;
+
+// create curve array
+var curves1 = [];
+var curves2 = [];
+var cache = [];
+var numCurves = 2;
+var maxTotalDrawn = 250;
+var maxSteps = 50;
+var currStep = 0;
+
+// initialize curve data 
+for(var n = 0; n < numCurves; n++) {
+        var x1   = nRand(scrW);
+        var y1   = nRand(scrH);
+        var cp1x = nRand(scrW);
+        var cp1y = nRand(scrH);
+        var cp2x = nRand(scrW);
+        var cp2y = nRand(scrH);
+        var x2   = nRand(scrW);
+        var y2   = nRand(scrH);
+        var r   = nRand(256);
+        var g   = nRand(256);
+        var b   = nRand(256);
+        var col  = getRandColStr();
+        var steps = Math.floor(nRand(maxSteps)+maxSteps)/2;
+        curves1.push({ x1:x1, y1:y1, cp1x:cp1x, cp1y:cp1y, cp2x:cp2x, cp2y:cp2y, x2:x2, y2:y2, r:r, g:g, b:b, col:col, currStep:0, steps:steps });
+
+        x1   = nRand(scrW);
+        y1   = nRand(scrH);
+        cp1x = nRand(scrW);
+        cp1y = nRand(scrH);
+        cp2x = nRand(scrW);
+        cp2y = nRand(scrH);
+        x2   = nRand(scrW);
+        y2   = nRand(scrH);
+        r   = nRand(256);
+        g   = nRand(256);
+        b   = nRand(256);
+        steps = Math.floor(nRand(maxSteps)+maxSteps)/2;
+        curves2.push({ x1:x1, y1:y1, cp1x:cp1x, cp1y:cp1y, cp2x:cp2x, cp2y:cp2y, x2:x2, y2:y2, r:r, g:g, b:b, col:col, currStep:0, steps:steps });
+}
+function getRandColStr() {
+        var col = getRandomColor();
+        var colstr =  "rgb("+col.r+","+col.g+","+col.b+")";
+        return colstr;
+}
+function periodicUpdate() {
+    //ctx.fillStyle = backstr; 
+    //ctx.fillRect(0, 0, scrW, scrH);
+    for (var n=0; n<curves1.length; n++) {
+        var c1 = curves1[n];
+        var c2 = curves2[n];
+        var s = stepCurve(c1, c2);
+        // draw curve
+        drawCurve(s);
+        drawSimCurve(s);
+        // save for future erasing
+        cache.push(s);
+        if (cache.length > maxTotalDrawn) {
+            var toErase = cache.shift() 
+            ctx.lineWidth=7;
+            drawCurve(toErase, backstr);
+            drawSimCurve(toErase, backstr);
+            ctx.lineWidth=4;
+        }
+
+        if (c1.currStep >= c1.steps) {
+            c1.currStep = 0;
+            c1.steps = nRand(100)+50;
+            c1.x1 = c2.x1;
+            c1.y1 = c2.y1;
+            c1.cp1x = c2.cp1x;
+            c1.cp1y = c2.cp1y;
+            c1.cp2x = c2.cp2x;
+            c1.cp2y = c2.cp2y;
+            c1.x2 = c2.x2;
+            c1.y2 = c2.y2;
+            c1.r  = c2.r;
+            c1.g  = c2.g;
+            c1.b  = c2.b;
+            c2.x1   = nRand(scrW);
+            c2.y1   = nRand(scrH);
+            c2.cp1x = nRand(scrW);
+            c2.cp1y = nRand(scrH);
+            c2.cp2x = nRand(scrW);
+            c2.cp2y = nRand(scrH);
+            c2.x2   = nRand(scrW);
+            c2.y2   = nRand(scrH);
+            c2.r    = nRand(256);
+            c2.g    = nRand(256);
+            c2.b    = nRand(256);
+        }
+    }
+}
+
+function drawCurve(c, color) {
+    var color = (typeof color === 'undefined') ? "rgb("+Math.floor(c.r)+","+Math.floor(c.g)+","+Math.floor(c.b)+")" : color;
+    ctx.beginPath();
+    ctx.moveTo(c.x1,c.y1);
+    ctx.bezierCurveTo(c.cp1x,c.cp1y,c.cp2x,c.cp2y,c.x2,c.y2);
+    ctx.strokeStyle = color; 
+    ctx.fillStyle = color; 
+    ctx.stroke();
+    ctx.closePath();
+    
+}
+function drawSimCurve(c, color) {
+    var color = (typeof color === 'undefined') ? "rgb("+Math.floor(c.r)+","+Math.floor(c.g)+","+Math.floor(c.b)+")" : color;
+    ctx.beginPath();
+    ctx.moveTo(scrW-c.x1,c.y1);
+    ctx.bezierCurveTo(scrW-c.cp1x,c.cp1y,scrW-c.cp2x,c.cp2y,scrW-c.x2,c.y2);
+    ctx.strokeStyle = color; 
+    ctx.fillStyle = color; 
+    ctx.stroke();
+    ctx.closePath();
+    
+}
+
+function stepCurve(c1,c2) {
+        var x1 = step2(c1.x1, c2.x1, c1.currStep, c1.steps)
+        var y1 = step2(c1.y1, c2.y1, c1.currStep, c1.steps)
+        var cp1x = step2(c1.cp1x, c2.cp1x, c1.currStep, c1.steps);
+        var cp1y = step2(c1.cp1y, c2.cp1y, c1.currStep, c1.steps);
+        var cp2x = step2(c1.cp2x, c2.cp2x, c1.currStep, c1.steps);
+        var cp2y = step2(c1.cp2y, c2.cp2y, c1.currStep, c1.steps);
+        var x2 = step2(c1.x2, c2.x2, c1.currStep, c1.steps)
+        var y2 = step2(c1.y2, c2.y2, c1.currStep, c1.steps)
+        var r = step2(c1.r, c2.r, c1.currStep, c1.steps)
+        var g = step2(c1.g, c2.g, c1.currStep, c1.steps)
+        var b = step2(c1.b, c2.b, c1.currStep, c1.steps)
+        c1.currStep++;
+        return {x1:x1,y1:y1,cp1x:cp1x,cp1y:cp1y,cp2x:cp2x,cp2y:cp2y,x2:x2,y2:y2,r:r,g:g,b:b,col:c1.col}
+}
+
+var inter = setInterval(periodicUpdate, 30);
+
+function step2(a, b, currStep, steps) {
+
+   var res = (a + ((b-a)/steps)*currStep);
+   return res; 
+}
+
+// float rand
+function fRand(n) {
+	return Math.random()*n;
+}
+
+// int rand
+function nRand(n) {
+	return Math.floor(Math.random()*n);
+}
+
+function getRandomColor() {
+        var r = nRand(256);
+        var g = nRand(256);
+        var b = nRand(256);
+        return { r : r, g : g, b : b };
+
+}
+
+function myRound(number, precision) {
+    var factor = Math.pow(10, precision);
+    var tempNumber = number * factor;
+    var roundedTempNumber = Math.round(tempNumber);
+    return roundedTempNumber / factor;
+};
+
+    </script>
+    </body>
+</html>
+
+
+
