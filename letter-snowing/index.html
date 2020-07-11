@@ -1,1 +1,186 @@
+<!DOCTYPE html>
+<!-- a monkey programmed presentation of text as falling letters, using just javascript and the DOM -->
+<html>
+<head>
+<title>AlphabetSoup</title>
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+        (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+          })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-99912401-1', 'auto');
+  ga('send', 'pageview');
+
+</script>
+<style>
+span {font-family: monospace; position: absolute;}
+</style>
+<script>
+
+// globals (I know, I know)
+var letterWidth;
+var letterHeight;
+var colSize;
+var rowSize;
+var letterArr;
+var msgArr;
+
+
+
+var sol = "To be, or not to be, that is the question: Whether 'tis nobler in the mind to suffer The slings and arrows of outrageous fortune, Or to take arms against a sea of troubles And by opposing end them. To die, to sleep, No more; and by a sleep to say we end The heart-ache and the thousand natural shocks That flesh is heir to: 'tis a consummation Devoutly to be wish'd. To die, to sleep; To sleep, perchance to dream, ay, there's the rub: For in that sleep of death what dreams may come, When we have shuffled off this mortal coil, Must give us pause, there's the respect That makes calamity of so long life.  For who would bear the whips and scorns of time, Th'oppressor's wrong, the proud man's contumely, The pangs of dispriz'd love, the law's delay, The insolence of office, and the spurns That patient merit of th'unworthy takes, When he himself might his quietus make With a bare bodkin? Who would fardels bear, To grunt and sweat under a weary life, But that the dread of something after death, The undiscovere'd country, from whose bourn No traveller returns, puzzles the will, And makes us rather bear those ills we have Than fly to others that we know not of?  Thus conscience does make cowards of us all, And thus the native hue of resolution Is sicklied o'er with the pale cast of thought, And enterprises of great pitch and moment With this regard their currents turn awry And lose the name of action."; 
+
+var numberOfChars = sol.length;
+
+
+function init() { 
+  var fontsize = 150; // initial value. we work are way down until it fits the screen
+  var screenWidth  = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
+  var screenHeight = window.innerHeight|| document.documentElement.clientHeight|| document.body.clientHeight;
+
+  // settle on a letter size so text fits in screen snugly (do it the hard way)
+  var decided = false;
+  while (!decided) {
+    fontsize = Math.round( fontsize * 10) / 10;
+    document.body.style.fontSize = fontsize+"px";
+    var x = document.createElement("SPAN");
+    x.innerHTML = "i";
+    document.body.appendChild(x);
+    letterWidth = x.offsetWidth;
+    letterHeight = x.offsetHeight;
+    console.log(letterHeight);
+    x.parentElement.removeChild(x); // cumplio su función ...
+    colSize = Math.floor(screenHeight/letterHeight);
+    rowSize = Math.floor(screenWidth/letterWidth);
+    console.log(colSize*rowSize+" --- "+numberOfChars);
+    if (colSize*rowSize > numberOfChars) {
+      decided = true;
+      // add spaces to the end of string so sentence begins top left.
+      var diff = colSize*rowSize - numberOfChars;
+      sol = sol + " ".repeat(diff);
+      numberOfChars = sol.length;  // recalculate number of characters (to see when we're finished later on)
+      console.log("|"+sol+"|");
+    } else {
+      fontsize -= 0.1;
+    }
+  }
+
+  // convert string to array
+  var soliloquy = sol.split('');
+
+
+  // create a two dimensional array from which to pick out letters, starting from the bottom rows working up
+  msgArr = Array(rowSize).fill().map(() => Array(colSize).fill(false));
+
+  // create a two dimensional array into which we insert and "move" the letters down, like dropping 
+  letterArr = Array(rowSize).fill().map(() => Array(colSize).fill(false)); 
+
+
+
+  // populate msgArr
+  for (i = colSize-1; i >=0; i--) {
+    for (j = rowSize-1; j >=0; j--) {
+      if (soliloquy.length > 0) {
+        var c = soliloquy.pop();
+        msgArr[i][j] = c;
+      } else {
+        msgArr[i][j] = false;
+      } 
+    }
+  }
+
+  // start snowing letters
+  snow();
+
+}
+
+
+function snow() {
+  var l,i,j;
+
+  // move them in the array downwards until they find a resting place
+  for (i = colSize-1; i>=0; i--) {
+    for (j = 0; j<rowSize; j++) {
+        l = letterArr[i][j];
+        if (isValid(l) && i < colSize-1 && !letterArr[i+1][j]) {
+          letterArr[i+1][j] = l;
+          letterArr[i][j] = false;
+        }
+    } 
+  }
+
+  // "graphic loop"
+  // actually place them physically in the DOM
+  for (i = 0; i<colSize; i++) {
+    for (j = 0; j<rowSize; j++) {
+      l = letterArr[i][j];
+      if (isValid(l)) {
+        l.style.left= j*letterWidth+"px";
+        l.style.top= i*letterHeight+"px";
+      }
+    }
+  }
+
+  console.log(numberOfChars);
+
+  // keep picking out new letters as long as there are any left
+  if ( numberOfChars > 0) {
+
+  // create new letterflake
+    // find a random letter to pick, from a random column, working up rows until we find a letter that hasn't been picked yet
+    var next = false;
+    while (!isValid(next)) { 
+      xpos = Math.floor(Math.random()*rowSize);
+      next = getNextChar(xpos);
+    }
+    // if place in first row is free (it shoud be) then create a span element with the letter and place it physically
+    if (!isValid(letterArr[0][xpos])) {
+      var x = document.createElement("SPAN");
+      x.innerHTML = next; 
+      letterArr[0][xpos] = x;
+      document.body.appendChild(x);
+      x.style.left ="-400px"; // offscreen first ... it will be placed correctly in next iteration by the "graphic loop"
+      numberOfChars--; // decrease counter so we know when to end
+    }
+  }
+  setTimeout(snow, 20); // call snow again in x milliseconds (may be race conditions issues if too short?  shouldn't be)
+}
+
+// this functions returns the next available char in a given column. false if none found
+function getNextChar(pos) {
+    var j = pos;
+    var i = colSize - 1;
+    while (i >= 0) {
+      if (isValid(msgArr[i][j])) {
+        var retchar = msgArr[i][j];
+        msgArr[i][j] = false;
+        return retchar;
+      }else{
+        i--;
+      }
+    }
+    return false;
+}
+
+
+// due to perl-like oddities , javascript considers empty space and the 0 string a false value. So we use this helper function so we don't falsely miss these
+function isValid(c) {
+  if (c === " ") {
+    return true;
+  }
+  if (c === "0") {
+    return true;
+  }
+  if (c) {
+    return true;
+  }
+  return false;
+}
+</script>
+
+
+</head>
+<body onLoad="init()">
+</body>
+</html>
 
